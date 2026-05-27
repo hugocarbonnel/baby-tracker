@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#f9e8e4" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>👶 Carnet de bébé</title>
+
+  <!-- ═══════════════════════════════════════════════
+       ⚠️  CONFIGURATION FIREBASE
+       Remplace les valeurs ci-dessous par les tiennes
+       (voir le guide dans le README ou demande à Claude)
+  ════════════════════════════════════════════════════ -->
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey:            "REMPLACE_PAR_TON_API_KEY",
+      authDomain:        "REMPLACE_PAR_TON_AUTH_DOMAIN",
+      projectId:         "REMPLACE_PAR_TON_PROJECT_ID",
+      storageBucket:     "REMPLACE_PAR_TON_STORAGE_BUCKET",
+      messagingSenderId: "REMPLACE_PAR_TON_MESSAGING_SENDER_ID",
+      appId:             "REMPLACE_PAR_TON_APP_ID"
+    };
+  </script>
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <style>
+    /* ── Variables ─────────────────────────────────── */
+    :root {
+      --bg:          #fdf8f6;
+      --surface:     #ffffff;
+      --primary:     #e8897a;
+      --primary-lt:  #f9e8e4;
+      --primary-dk:  #c9604f;
+      --blue:        #7ab3d4;
+      --blue-lt:     #e4f0f8;
+      --green:       #7dc9a0;
+      --green-lt:    #e4f5ed;
+      --purple:      #a98fcc;
+      --purple-lt:   #f0eaf8;
+      --text:        #3d2c2c;
+      --text-lt:     #8a7070;
+      --border:      #f0e4e0;
+      --radius:      16px;
+      --radius-sm:   10px;
+    }
+
+    /* ── Reset ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+    }
+    #app { height: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; }
+
+    /* ── Pages ─────────────────────────────────────── */
+    .page { display: flex; flex-direction: column; height: 100%; }
+    .hidden { display: none !important; }
+
+    /* ── Boutons ───────────────────────────────────── */
+    button { cursor: pointer; border: none; font-family: inherit; font-size: 1rem; transition: opacity .15s, transform .1s; background: none; }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; padding: 14px 24px; border-radius: 50px; font-weight: 600; font-size: 1rem; width: 100%; }
+
+    /* ── Inputs ────────────────────────────────────── */
+    input, select {
+      font-family: inherit; font-size: 1rem; color: var(--text);
+      background: var(--bg); border: 2px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 14px; width: 100%;
+      outline: none; transition: border-color .2s;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+    label { display: block; font-size: .82rem; font-weight: 600; color: var(--text-lt); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+    .field { margin-bottom: 16px; }
+
+    /* ── Toggle group ──────────────────────────────── */
+    .tgl-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tgl-btn {
+      flex: 1; min-width: 80px; padding: 10px 8px; border-radius: var(--radius-sm);
+      background: var(--bg); border: 2px solid var(--border);
+      font-size: .88rem; font-weight: 500; color: var(--text-lt); text-align: center; cursor: pointer;
+    }
+    .tgl-btn.active { background: var(--primary-lt); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+
+    /* ── Login ─────────────────────────────────────── */
+    #login-page {
+      align-items: center; justify-content: center;
+      padding: 32px 24px; gap: 16px;
+    }
+    #login-page .emoji { font-size: 80px; margin-bottom: 8px; }
+    #login-page h1 { font-size: 1.5rem; text-align: center; }
+    #login-page p.sub { color: var(--text-lt); font-size: .95rem; text-align: center; line-height: 1.5; margin-bottom: 8px; }
+    #login-page form { width: 100%; max-width: 320px; }
+    #login-code { text-align: center; font-size: 1.2rem; letter-spacing: .1em; font-weight: 600; }
+    #login-hint { font-size: .8rem; color: var(--text-lt); text-align: center; max-width: 280px; line-height: 1.5; margin-top: 8px; }
+    .err-msg { color: #e05555; font-size: .85rem; margin-top: 6px; }
+
+    /* ── Header ────────────────────────────────────── */
+    header { padding: 16px 20px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.3rem; }
+    header .date { font-size: .78rem; color: var(--text-lt); margin-top: 2px; text-transform: capitalize; }
+    .code-badge {
+      background: var(--primary-lt); color: var(--primary);
+      padding: 6px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600; cursor: pointer;
+    }
+    #logout-box {
+      margin-top: 10px; background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 12px; text-align: center;
+    }
+    #logout-box p { font-size: .85rem; margin-bottom: 10px; color: var(--text-lt); }
+    #btn-logout { background: #fde8e8; color: #c94444; padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: .85rem; }
+
+    /* ── Tabs ──────────────────────────────────────── */
+    .tabs { display: flex; padding: 12px 20px 0; gap: 8px; background: var(--surface); flex-shrink: 0; }
+    .tab-btn { padding: 8px 18px; border-radius: 20px; font-size: .9rem; font-weight: 600; background: var(--primary-lt); color: var(--primary); }
+    .tab-btn.active { background: var(--primary); color: #fff; }
+
+    /* ── Main scrollable ───────────────────────────── */
+    main { flex: 1; overflow: auto; padding: 16px 20px; }
+
+    /* ── Stats ─────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { border-radius: 14px; padding: 12px 10px; text-align: center; }
+    .stat-card .ic { font-size: 20px; margin-bottom: 4px; }
+    .stat-card .val { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+    .stat-card .lbl { font-size: .72rem; color: var(--text-lt); margin-top: 3px; }
+
+    /* ── Detail bar ────────────────────────────────── */
+    .detail-bar { background: var(--blue-lt); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; font-size: .85rem; color: var(--text-lt); }
+
+    /* ── Empty state ───────────────────────────────── */
+    .empty { text-align: center; padding: 48px 0; color: var(--text-lt); }
+    .empty .ic { font-size: 48px; margin-bottom: 12px; }
+    .empty p { font-size: .95rem; }
+    .empty small { font-size: .85rem; margin-top: 6px; display: block; }
+
+    /* ── Entry cards ───────────────────────────────── */
+    .entry-card { display: flex; align-items: flex-start; gap: 12px; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+    .entry-card .eic { font-size: 22px; line-height: 1; margin-top: 1px; }
+    .entry-card .ebody { flex: 1; }
+    .entry-card .etitle { font-weight: 600; font-size: .95rem; }
+    .entry-card .esub { font-size: .82rem; color: var(--text-lt); margin-top: 2px; }
+    .entry-card .enote { font-size: .8rem; color: var(--text-lt); font-style: italic; margin-top: 3px; }
+    .entry-card .etime { font-size: .8rem; color: var(--text-lt); white-space: nowrap; margin-top: 2px; }
+    .day-header { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text-lt); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .day-group { margin-bottom: 24px; }
+
+    /* ── Action bar ────────────────────────────────── */
+    nav.action-bar { display: flex; gap: 8px; padding: 12px 16px 20px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .action-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; border-radius: 14px; }
+    .action-btn .aic { font-size: 22px; }
+    .action-btn .albl { font-size: .75rem; font-weight: 600; }
+
+    /* ── Modal ─────────────────────────────────────── */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(60,30,20,.35);
+      z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeIn .2s ease;
+    }
+    .modal-sheet {
+      width: 100%; max-width: 480px; background: var(--surface);
+      border-radius: 24px 24px 0 0; padding: 0 20px 32px;
+      animation: slideUp .25s ease; max-height: 92vh; overflow-y: auto;
+    }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 4px; margin: 12px auto 20px; }
+    .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; text-align: center; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    /* ── Grid 2 col ────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Scrollbar ─────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════ PAGE LOGIN ══════════════════ -->
+  <div id="login-page" class="page">
+    <div class="emoji">🍼</div>
+    <h1>Carnet de bébé</h1>
+    <p class="sub">Entrez votre code famille pour accéder au carnet partagé.</p>
+    <form id="login-form">
+      <div class="field">
+        <label>Code famille</label>
+        <input id="login-code" type="text" placeholder="Ex : BEBE2024" maxlength="20" autocomplete="off" autocapitalize="characters" />
+        <p id="login-err" class="err-msg hidden"></p>
+      </div>
+      <button type="submit" class="btn-primary">Accéder au carnet →</button>
+    </form>
+    <p id="login-hint">💡 Créez un code et partagez-le avec votre compagne pour synchroniser les données.</p>
+  </div>
+
+  <!-- ══════════════════ PAGE HOME ══════════════════ -->
+  <div id="home-page" class="page hidden">
+
+    <!-- Header -->
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>👶 Carnet de bébé</h1>
+          <p class="date" id="today-label"></p>
+        </div>
+        <button class="code-badge" id="code-badge-btn" onclick="toggleLogout()"></button>
+      </div>
+      <div id="logout-box" class="hidden">
+        <p>Changer de code famille ?</p>
+        <button id="btn-logout" onclick="logout()">Se déconnecter</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('today')">Aujourd'hui</button>
+      <button class="tab-btn" onclick="switchTab('history')">Historique</button>
+    </div>
+
+    <!-- Main -->
+    <main>
+      <!-- Tab Aujourd'hui -->
+      <div id="tab-today">
+        <div class="stats-grid">
+          <div class="stat-card" style="background:var(--blue-lt)">
+            <div class="ic">🍼</div>
+            <div class="val" style="color:var(--blue)" id="stat-feedings">0</div>
+            <div class="lbl">tétées</div>
+          </div>
+          <div class="stat-card" style="background:var(--green-lt)">
+            <div class="ic">🩲</div>
+            <div class="val" style="color:var(--green)" id="stat-diapers">0</div>
+            <div class="lbl">couches</div>
+          </div>
+          <div class="stat-card" style="background:var(--primary-lt)">
+            <div class="ic">⏱</div>
+            <div class="val" style="color:var(--primary);font-size:1rem" id="stat-last">–</div>
+            <div class="lbl">dernière</div>
+          </div>
+        </div>
+        <div id="detail-bar" class="detail-bar hidden"></div>
+        <div id="timeline-today"></div>
+      </div>
+
+      <!-- Tab Historique -->
+      <div id="tab-history" class="hidden">
+        <div id="timeline-history"></div>
+      </div>
+    </main>
+
+    <!-- Action bar -->
+    <nav class="action-bar">
+      <button class="action-btn" style="background:var(--blue-lt);border:1.5px solid #7ab3d420" onclick="openModal('feeding')">
+        <span class="aic">🍼</span><span class="albl" style="color:var(--blue)">Tétée</span>
+      </button>
+      <button class="action-btn" style="background:var(--green-lt);border:1.5px solid #7dc9a020" onclick="openModal('diaper')">
+        <span class="aic">🩲</span><span class="albl" style="color:var(--green)">Couche</span>
+      </button>
+      <button class="action-btn" style="background:var(--purple-lt);border:1.5px solid #a98fcc20" onclick="openModal('weight')">
+        <span class="aic">⚖️</span><span class="albl" style="color:var(--purple)">Mesures</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ══════════════════ MODALES ══════════════════ -->
+  <div id="modal-overlay" class="hidden" onclick="handleOverlayClick(event)">
+
+    <!-- Tétée -->
+    <div class="modal-sheet" id="modal-feeding">
+      <div class="modal-handle"></div>
+      <p class="modal-title">🍼 Ajouter une tétée</p>
+      <div class="field">
+        <label>Type</label>
+        <div class="tgl-group">
+          <button type="button" class="tgl-btn active" id="tgl-allait" onclick="setFeedingType('allaitement')">🤱 Allaitement</button>
+          <button type="button" class="tgl-btn" id="tgl-biberon" onclick="setFeedingType('biberon')">🍼 Biberon</button>
+        </div>
+      </div>
+      <div id="allait-fields">
+        <div class="field">
+          <label>Côté</label>
+          <div class="tgl-group">
+            <button type="button" class="tgl-btn active" id="tgl-gauche" onclick="setSide('gauche')">⬅️ Gauche</button>
+            <button type="button" class="tgl-btn" id="tgl-droit" onclick="setSide('droit')">Droite ➡️</button>
+            <button type="button" class="tgl-btn" id="tgl-lesdeux" onclick="setSide('les-deux')">↔️ Les deux</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Durée (minutes)</label>
+          <input type="number" id="f-duration" placeholder="Ex : 15" min="1" max="120" />
+        </div>
+      </div>
+      <div id="biberon-fields" class="hidden">
+        <div class="field">
+          <label>Quantité (ml)</label>
+          <input type="number" id="f-quantity" placeholder="Ex : 90" min="1" max="400" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Heure</label>
+        <input type="datetime-local" id="f-datetime" />
+      </div>
+      <div class="field">
+        <label>Notes (optionnel)</label>
+        <input type="text" id="f-notes" placeholder="Remarques..." />
+      </div>
+      <p id="f-err" class="err-msg hidden"></p>
+      <button class="btn-primary" id="f-submit" onclick="submitFeeding()">Enregistrer ✓</button>
+    </div>
+
+    <!-- Couche -->
+    <div class="modal-sheet hidden" id="modal-diaper">
+      <div class="modal-handle"></div>
+      <p class="modal-title">🩲 Changer une couche</p>
+      <div class="field">
+        <label>Type</label>
+        <div class="tgl-group">
+          <button type="button" class="tgl-btn active" id="tgl-pipi" onclick="setDiaperType('pipi')">💧 Pipi</button>
+          <button type="button" class="tgl-btn" id="tgl-caca" onclick="setDiaperType('caca')">💩 Caca</button>
+          <button type="button" class="tgl-btn" id="tgl-mixte" onclick="setDiaperType('mixte')">🔀 Mixte</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Heure</label>
+        <input type="datetime-local" id="d-datetime" />
+      </div>
+      <div class="field">
+        <label>Notes (optionnel)</label>
+        <input type="text" id="d-notes" placeholder="Remarques..." />
+      </div>
+      <p id="d-err" class="err-msg hidden"></p>
+      <button class="btn-primary" id="d-submit" onclick="submitDiaper()">Enregistrer ✓</button>
+    </div>
+
+    <!-- Mesures -->
+    <div class="modal-sheet hidden" id="modal-weight">
+      <div class="modal-handle"></div>
+      <p class="modal-title">⚖️ Mesures</p>
+      <div class="field">
+        <label>Poids (grammes) *</label>
+        <input type="number" id="w-weight" placeholder="Ex : 3450" min="500" max="15000" />
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Taille (cm)</label>
+          <input type="number" id="w-height" placeholder="Ex : 52" min="30" max="120" step="0.1" />
+        </div>
+        <div class="field">
+          <label>PC (cm)</label>
+          <input type="number" id="w-head" placeholder="Ex : 35" min="20" max="60" step="0.1" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="w-date" />
+      </div>
+      <div class="field">
+        <label>Notes (optionnel)</label>
+        <input type="text" id="w-notes" placeholder="Contexte, médecin..." />
+      </div>
+      <p id="w-err" class="err-msg hidden"></p>
+      <button class="btn-primary" id="w-submit" onclick="submitWeight()">Enregistrer ✓</button>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- Firebase SDK (chargé depuis les serveurs Google) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  INITIALISATION FIREBASE
+// ═══════════════════════════════════════════════════
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+// ═══════════════════════════════════════════════════
+//  ÉTAT DE L'APP
+// ═══════════════════════════════════════════════════
+let familyCode      = localStorage.getItem('baby_family_code') || null;
+let currentTab      = 'today';
+let feedingType     = 'allaitement';
+let feedingSide     = 'gauche';
+let diaperType      = 'pipi';
+let todayListener   = null;
+let historyListener = null;
+
+// ═══════════════════════════════════════════════════
+//  DÉMARRAGE
+// ═══════════════════════════════════════════════════
+function init() {
+  if (familyCode) {
+    showHome();
+  } else {
+    show('login-page');
+    hide('home-page');
+  }
+}
+
+// ── Login ─────────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const code = document.getElementById('login-code').value.trim().toUpperCase();
+  if (code.length < 3) {
+    showErr('login-err', 'Le code doit faire au moins 3 caractères.');
+    return;
+  }
+  familyCode = code;
+  localStorage.setItem('baby_family_code', code);
+  showHome();
+});
+
+function showHome() {
+  hide('login-page');
+  show('home-page');
+  document.getElementById('code-badge-btn').textContent = '#' + familyCode;
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+  startListeners();
+}
+
+function logout() {
+  if (todayListener)   { todayListener();   todayListener   = null; }
+  if (historyListener) { historyListener(); historyListener = null; }
+  localStorage.removeItem('baby_family_code');
+  familyCode = null;
+  hide('home-page');
+  show('login-page');
+  hide('logout-box');
+  document.getElementById('login-code').value = '';
+}
+
+function toggleLogout() {
+  document.getElementById('logout-box').classList.toggle('hidden');
+}
+
+// ═══════════════════════════════════════════════════
+//  FIRESTORE — LISTENERS TEMPS RÉEL
+// ═══════════════════════════════════════════════════
+function startListeners() {
+  // Aujourd'hui
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  todayListener = db
+    .collection('families').doc(familyCode).collection('entries')
+    .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(startOfDay))
+    .orderBy('timestamp', 'desc')
+    .onSnapshot(snap => {
+      const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderToday(entries);
+    }, err => console.error('Firestore today:', err));
+}
+
+function startHistoryListener() {
+  if (historyListener) return;
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+  since.setHours(0, 0, 0, 0);
+
+  historyListener = db
+    .collection('families').doc(familyCode).collection('entries')
+    .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(since))
+    .orderBy('timestamp', 'desc')
+    .onSnapshot(snap => {
+      const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderHistory(entries);
+    }, err => console.error('Firestore history:', err));
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDU — AUJOURD'HUI
+// ═══════════════════════════════════════════════════
+function renderToday(entries) {
+  const feedings = entries.filter(e => e.type === 'feeding');
+  const diapers  = entries.filter(e => e.type === 'diaper');
+  const last     = feedings[0];
+
+  document.getElementById('stat-feedings').textContent = feedings.length;
+  document.getElementById('stat-diapers').textContent  = diapers.length;
+  document.getElementById('stat-last').textContent = last
+    ? last.timestamp.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : '–';
+
+  const totalMl  = feedings.filter(e => e.feedingType === 'biberon').reduce((s, e) => s + (e.quantity || 0), 0);
+  const totalMin = feedings.filter(e => e.feedingType === 'allaitement').reduce((s, e) => s + (e.duration || 0), 0);
+  const bar = document.getElementById('detail-bar');
+  if (totalMl > 0 || totalMin > 0) {
+    bar.classList.remove('hidden');
+    bar.innerHTML = (totalMl  > 0 ? '🍼 ' + totalMl  + ' ml biberons&nbsp;&nbsp;' : '') +
+                    (totalMin > 0 ? '🤱 ' + totalMin + ' min sein' : '');
+  } else {
+    bar.classList.add('hidden');
+  }
+
+  const container = document.getElementById('timeline-today');
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="ic">☀️</div><p>Aucune entrée aujourd\'hui.</p><small>Utilise les boutons ci-dessous !</small></div>';
+  } else {
+    container.innerHTML = entries.map(entryHTML).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDU — HISTORIQUE
+// ═══════════════════════════════════════════════════
+function renderHistory(entries) {
+  const container = document.getElementById('timeline-history');
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty"><p>Aucune donnée sur les 30 derniers jours.</p></div>';
+    return;
+  }
+  // Grouper par jour
+  const groups = {};
+  entries.forEach(e => {
+    if (!e.timestamp) return;
+    const d = e.timestamp.toDate().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(e);
+  });
+  container.innerHTML = Object.entries(groups).map(([day, list]) =>
+    `<div class="day-group">
+      <p class="day-header">${day} · ${list.length} entrée${list.length > 1 ? 's' : ''}</p>
+      ${list.map(entryHTML).join('')}
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  HTML D'UNE ENTRÉE
+// ═══════════════════════════════════════════════════
+function entryHTML(e) {
+  const time = e.timestamp
+    ? e.timestamp.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : '--:--';
+
+  if (e.type === 'feeding') {
+    const isBib = e.feedingType === 'biberon';
+    const sides = { gauche: '← Gauche', droit: 'Droite →', 'les-deux': '↔ Les deux' };
+    const title = isBib ? `Biberon — ${e.quantity} ml` : `Allaitement — ${sides[e.side] || e.side}`;
+    const sub   = (!isBib && e.duration) ? `⏱ ${e.duration} min` : '';
+    return card('var(--blue-lt)', isBib ? '🍼' : '🤱', title, sub, e.notes || '', time);
+  }
+  if (e.type === 'diaper') {
+    const lbl = { pipi: 'Pipi', caca: 'Caca', mixte: 'Mixte' };
+    const ic  = { pipi: '💧', caca: '💩', mixte: '🔀' };
+    return card('var(--green-lt)', ic[e.diaperType] || '🩲', 'Couche — ' + (lbl[e.diaperType] || e.diaperType), '', e.notes || '', time);
+  }
+  if (e.type === 'weight') {
+    const date = e.timestamp
+      ? e.timestamp.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+      : '--';
+    const sub = [e.height ? e.height + ' cm' : '', e.headCircumference ? 'PC ' + e.headCircumference + ' cm' : ''].filter(Boolean).join(' · ');
+    return card('var(--purple-lt)', '⚖️', 'Mesures — ' + (e.weight ? (e.weight / 1000).toFixed(3) + ' kg' : '–'), sub, e.notes || '', date);
+  }
+  return '';
+}
+
+function card(bg, ic, title, sub, note, time) {
+  return `<div class="entry-card" style="background:${bg}">
+    <span class="eic">${ic}</span>
+    <div class="ebody">
+      <p class="etitle">${title}</p>
+      ${sub  ? `<p class="esub">${sub}</p>`  : ''}
+      ${note ? `<p class="enote">${note}</p>` : ''}
+    </div>
+    <span class="etime">${time}</span>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION TABS
+// ═══════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'today') || (i === 1 && tab === 'history'));
+  });
+  document.getElementById('tab-today').classList.toggle('hidden', tab !== 'today');
+  document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
+  if (tab === 'history') startHistoryListener();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODALES
+// ═══════════════════════════════════════════════════
+function openModal(type) {
+  // Réinitialiser et pré-remplir l'heure
+  const now = localDatetimeValue(new Date());
+
+  hide('modal-feeding'); hide('modal-diaper'); hide('modal-weight');
+  show('modal-' + type);
+  show('modal-overlay');
+  document.body.style.overflow = 'hidden';
+
+  if (type === 'feeding') {
+    document.getElementById('f-datetime').value = now;
+    document.getElementById('f-duration').value = '';
+    document.getElementById('f-quantity').value = '';
+    document.getElementById('f-notes').value    = '';
+    hide('f-err');
+    setFeedingType('allaitement');
+    setSide('gauche');
+  }
+  if (type === 'diaper') {
+    document.getElementById('d-datetime').value = now;
+    document.getElementById('d-notes').value    = '';
+    hide('d-err');
+    setDiaperType('pipi');
+  }
+  if (type === 'weight') {
+    document.getElementById('w-date').value   = localDateValue(new Date());
+    document.getElementById('w-weight').value = '';
+    document.getElementById('w-height').value = '';
+    document.getElementById('w-head').value   = '';
+    document.getElementById('w-notes').value  = '';
+    hide('w-err');
+  }
+}
+
+function closeModal() {
+  hide('modal-overlay');
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// ── Tétée ─────────────────────────────────────────
+function setFeedingType(type) {
+  feedingType = type;
+  document.getElementById('tgl-allait').classList.toggle('active', type === 'allaitement');
+  document.getElementById('tgl-biberon').classList.toggle('active', type === 'biberon');
+  document.getElementById('allait-fields').classList.toggle('hidden', type !== 'allaitement');
+  document.getElementById('biberon-fields').classList.toggle('hidden', type !== 'biberon');
+}
+
+function setSide(side) {
+  feedingSide = side;
+  ['gauche','droit','lesdeux'].forEach(s => {
+    document.getElementById('tgl-' + s).classList.remove('active');
+  });
+  const map = { gauche: 'gauche', droit: 'droit', 'les-deux': 'lesdeux' };
+  document.getElementById('tgl-' + map[side]).classList.add('active');
+}
+
+async function submitFeeding() {
+  hide('f-err');
+  if (feedingType === 'allaitement' && !document.getElementById('f-duration').value) {
+    return showErr('f-err', 'Indique la durée de la tétée.');
+  }
+  if (feedingType === 'biberon' && !document.getElementById('f-quantity').value) {
+    return showErr('f-err', 'Indique la quantité en ml.');
+  }
+  setLoading('f-submit', true);
+  try {
+    const data = {
+      type: 'feeding', feedingType,
+      timestamp: firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('f-datetime').value)),
+      notes: document.getElementById('f-notes').value.trim(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    if (feedingType === 'allaitement') {
+      data.side     = feedingSide;
+      data.duration = Number(document.getElementById('f-duration').value);
+    } else {
+      data.quantity = Number(document.getElementById('f-quantity').value);
+    }
+    await db.collection('families').doc(familyCode).collection('entries').add(data);
+    closeModal();
+  } catch (err) { showErr('f-err', 'Erreur réseau. Vérifie ta connexion.'); console.error(err); }
+  setLoading('f-submit', false);
+}
+
+// ── Couche ─────────────────────────────────────────
+function setDiaperType(type) {
+  diaperType = type;
+  ['pipi','caca','mixte'].forEach(t => {
+    document.getElementById('tgl-' + t).classList.toggle('active', t === type);
+  });
+}
+
+async function submitDiaper() {
+  hide('d-err');
+  setLoading('d-submit', true);
+  try {
+    await db.collection('families').doc(familyCode).collection('entries').add({
+      type: 'diaper', diaperType,
+      timestamp: firebase.firestore.Timestamp.fromDate(new Date(document.getElementById('d-datetime').value)),
+      notes: document.getElementById('d-notes').value.trim(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    closeModal();
+  } catch (err) { showErr('d-err', 'Erreur réseau. Vérifie ta connexion.'); console.error(err); }
+  setLoading('d-submit', false);
+}
+
+// ── Mesures ────────────────────────────────────────
+async function submitWeight() {
+  hide('w-err');
+  if (!document.getElementById('w-weight').value) {
+    return showErr('w-err', 'Le poids est requis.');
+  }
+  setLoading('w-submit', true);
+  try {
+    const d = document.getElementById('w-date').value;
+    const data = {
+      type: 'weight',
+      timestamp: firebase.firestore.Timestamp.fromDate(new Date(d + 'T12:00:00')),
+      notes: document.getElementById('w-notes').value.trim(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      weight: Number(document.getElementById('w-weight').value),
+    };
+    const h = document.getElementById('w-height').value;
+    const p = document.getElementById('w-head').value;
+    if (h) data.height            = Number(h);
+    if (p) data.headCircumference = Number(p);
+    await db.collection('families').doc(familyCode).collection('entries').add(data);
+    closeModal();
+  } catch (err) { showErr('w-err', 'Erreur réseau. Vérifie ta connexion.'); console.error(err); }
+  setLoading('w-submit', false);
+}
+
+// ═══════════════════════════════════════════════════
+//  UTILITAIRES
+// ═══════════════════════════════════════════════════
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function showErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.classList.remove('hidden'); }
+function setLoading(id, on) {
+  const btn = document.getElementById(id);
+  btn.disabled = on;
+  btn.textContent = on ? 'Enregistrement...' : 'Enregistrer ✓';
+}
+function localDatetimeValue(date) {
+  const p = n => String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+}
+function localDateValue(date) {
+  const p = n => String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}`;
+}
+
+// ═══════════════════════════════════════════════════
+//  LANCEMENT
+// ═══════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
